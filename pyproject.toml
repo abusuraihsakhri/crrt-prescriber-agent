@@ -21,7 +21,7 @@ dependencies = ["pydantic>=2.5,<3"]
 
 [project.optional-dependencies]
 api = ["fastapi>=0.110,<1", "uvicorn>=0.27,<1"]
-dev = ["pytest>=7,<10"]
+dev = ["pytest>=7,<10", "httpx>=0.27,<1"]
 
 [project.scripts]
 crrt-prescriber-engine = "crrt_prescriber_agent.cli:main"
@@ -29,3 +29,9 @@ crrt-prescriber-engine = "crrt_prescriber_agent.cli:main"
 [project.urls]
 Homepage = "https://github.com/abusuraihsakhri/crrt-prescriber-agent"
 Repository = "https://github.com/abusuraihsakhri/crrt-prescriber-agent.git"
+
+[tool.setuptools.packages.find]
+include = ["agents*", "crrt_prescriber_agent*"]
+
+[tool.setuptools]
+py-modules = ["crrt_mind", "enrichment", "simulator"]
