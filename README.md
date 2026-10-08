@@ -1,211 +1,70 @@
 # CRRT Prescriber Agent
 
-> **Domain:** Nephrology & Renal Replacement Protocols
-> **Reference Guidelines & Standards:** `KDIGO & KDOQI Clinical Guidelines`
+CRRT effluent-dose and fluid-balance calculations, an experimental Python audit framework, and a browser-based educational worksheet. The clinical calculations are **illustrative** and have not been established as validated medical devices or autonomous prescribing protocols.
 
-<div align="center">
+## Browser worksheet
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+The static interface in [`web/index.html`](web/index.html) calculates:
 
-</div>
+- **Observed effluent dose** = collected effluent (mL) / [body weight (kg) × observation duration (h)]
+- **Net fluid balance** = intake − non-CRRT output − net patient fluid removal by CRRT
 
----
+It runs entirely in the browser, does not contact an API, and does not store input data. Example measurements are prefilled. The browser uses JavaScript; it does **not** run the Python engine or pretend to provide signed audits. GitHub Pages deployment is configured in `.github/workflows/pages.yml`.
 
-## 📖 What It Does
+The KDIGO 2012 reference interval of **20–25 mL/kg/h refers to delivered effluent in adults with AKI**, not a universal prescribed pump rate. Effluent does not directly prove solute clearance, and the worksheet does not account for circuit downtime, anticoagulation or clinical individualization.
 
-**CRRT Prescriber Agent** is an advanced analytical and computational platform implementing Continuous Renal Replacement Effluent & Regional Citrate Manager. It provides clinical decision support for CRRT dosing, anticoagulation protocols, and fluid balance management.
+## Python features
 
----
+`crrt_mind.py` provides CVVH effluent calculations, replacement-flow estimation, predilution approximation, CVVHD illustrative clearance, CVVHDF flow aggregation, simplified Kt/V, citrate and heparin arithmetic, and fluid balance. Additional research-oriented modules implement synthetic-case audits and exploratory citrate/electrolyte/filter evaluation.
 
-## ⚙️ Key Capabilities & Algorithmic Modules
+**Important limitations:** Citrate and heparin functions are arithmetic models, not patient-specific treatment instructions. Some formulas and thresholds are simplifications that require independent specialist verification before any clinical use. Never copy calculated anticoagulant rates into clinical orders without a locally approved protocol. Do not enter identifiable patient data.
 
-### 🔬 Core Calculation Engine (`crrt_mind.py`)
+## Installation and usage
 
-- **`calc_cvvh_prescribed_dose()`**: Calculate prescribed CVVH dose in mL/kg/hr
-- **`calc_replacement_fluid_rate()`**: Calculate replacement fluid rate for CVVH
-- **`calc_pre_post_dilution()`**: Adjust replacement fluid for pre-dilution vs post-dilution mode
-- **`calc_cvvhd_clearance()`**: Calculate CVVHD clearance using the KoA approach
-- **`calc_cvhdf_total_effluent()`**: Calculate total effluent volume for CVVHDF
-- **`calc_crrt_ktv()`**: Calculate Kt/V dose adequacy metric
-- **`calc_citrate_protocol()`**: Regional citrate anticoagulation protocol
-- **`calc_heparin_protocol()`**: Systemic heparin anticoagulation protocol
-- **`calc_fluid_balance()`**: Net fluid balance calculation
-- **`prescribe_crrt()`**: Generate comprehensive CRRT prescription
-
-### 🤖 Multi-Agent System (`crrt_prescriber_agent/`)
-
-- **EffluentDoseCalculatorAgent**: Primary metric & baseline quality auditor
-- **RegionalCitrateManagerAgent**: STAT kinetics & closed-loop escalation auditor
-- **FilterTransmembranePressureAgent**: Biomarker & concordance triager
-- **CRRTCoordinator**: Executive coordinator & air-gapped supervisory interface
-
-### 🛡️ Enterprise Security (`agents/base.py`)
-
-- **Zero-PHI Outbound Guard**: AST and regex inspection blocking SSNs, MRNs, phone numbers, emails, and patient identifiers
-- **HMAC-SHA256 Audit Trail**: Chained, cryptographically signed logs for every evaluation
-- **Path Traversal Protection**: Input validation for file operations
-
-### 📊 Telemetry & Monitoring (`agents/metrics.py`)
-
-- Prometheus-compatible metrics export
-- Task processing latency tracking
-- Alert tier counters (ROUTINE, ELEVATED, CRITICAL_STAT)
-
----
-
-## 💻 Installation
+Requires Python 3.10–3.12 for the tested CI configurations (package metadata permits Python 3.9+).
 
 ```bash
-# Clone the repository
 git clone https://github.com/abusuraihsakhri/crrt-prescriber-agent.git
 cd crrt-prescriber-agent
-
-# Install dependencies (stdlib-only core, optional for full features)
-pip install -e .
-
-# For FastAPI server support:
-pip install fastapi uvicorn
-
-# For Pydantic models (agents module):
-pip install pydantic
-```
-
----
-
-## 💻 CLI Quickstart & Usage
-
-### Core Calculator (stdlib-only)
-```bash
-# CVVH dose calculation
+python -m pip install -e ".[api,dev]"
 python cli.py cvvh --effluent-ml 48000 --weight 80 --hours 24
-
-# Replacement fluid rate
-python cli.py replacement --dose 25 --weight 80
-
-# CVVHD clearance
-python cli.py cvvhd --dialysate-ml-hr 2000 --blood-flow-ml-min 200
-
-# Full prescription
-python cli.py prescribe --mode CVVH --weight 80 --dose 25 --anticoag citrate
-
-# Citrate protocol
-python cli.py citrate --blood-flow-ml-min 150
-
-# Heparin protocol
-python cli.py heparin --weight 80 --indication standard
-
-# Fluid balance
 python cli.py fluid --intake-ml 3000 --output-ml 500 --uf-ml 2500
+python cli.py prescribe --mode CVVH --weight 80 --dose 25 --anticoag none
+python crrt_prescriber_agent_app.py audit --case-id SYN-CASE-01
+python -m pytest -q
 ```
 
-### Multi-Agent System
+To open the browser worksheet locally, open `web/index.html` in a modern browser. No server, dependencies or external assets are needed.
+
+## Optional API and Docker
+
 ```bash
-# Run clinical audit
-python crrt_prescriber_agent_app.py audit --case-id CASE-001 --primary 26.2 --secondary 12.5
-
-# Batch process CSV
-python crrt_prescriber_agent_app.py batch -i sample.csv -o results.csv
-
-# Verify audit trail integrity
-python crrt_prescriber_agent_app.py verify-audit
-
-# Launch FastAPI server
 python crrt_prescriber_agent_app.py serve --host 127.0.0.1 --port 8000
+# Alternative synthetic-task worker API:
+uvicorn agents.api:app --host 127.0.0.1 --port 8000
 ```
 
----
+Both expose `/health` and `/api/audit`, **but they use different request schemas and rule sets**. The `agents.api` service also exposes `/metrics` as JSON (not Prometheus exposition text). The APIs have no built-in authentication or production-grade patient-data controls; bind to localhost for evaluation and do not expose them publicly with real health data.
 
-## 🧪 Testing & Verification
+For Docker Compose, configure a high-entropy key before starting:
 
 ```bash
-# Run all tests
-pytest -v
-
-# Run specific test modules
-pytest test_crrt_mind.py -v
-pytest tests/ -v
+export AUDIT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+docker compose up --build
 ```
 
-### Test Coverage
-- **32 tests** for core calculation engine (`test_crrt_mind.py`)
-- **3 tests** for multi-agent system (`tests/test_crrt_prescriber_agent.py`)
-- **2 tests** for enrichment modules (`tests/test_enrichment.py`)
+The audit trail is held **in process memory only**. HMAC-SHA256 signatures and chaining detect modification of retained records when verified with the same key, but do not provide durable retention, external anchoring, complete PHI detection, or regulatory compliance. When no audit key is set for direct Python use, an ephemeral development key is generated with a warning. Never commit production secrets.
 
----
+## Testing and deployment
 
-## 🐳 Container Deployment
+GitHub Actions runs dependency installation, `pip check`, Python compilation and pytest against Python 3.10, 3.11 and 3.12. Regression tests cover core calculations, citrate units, predilution, invalid measurements, batch flags, HMAC verification, API requests and the static worksheet script. GitHub Pages publishes the `web/` directory after changes to `master`.
 
-```bash
-docker build -t crrt-prescriber-agent .
-docker run -p 8000:8000 crrt-prescriber-agent
-```
+## Technology, privacy and license
 
----
+- Python 3 with standard-library calculation routines; Pydantic and optional FastAPI/Uvicorn for the synthetic audit framework
+- Standalone HTML, CSS and JavaScript for the browser worksheet; no Pyodide required
+- Chromium, Firefox and Safari-compatible modern browser APIs; automated cross-browser testing is not included
+- Browser calculations do not store or transmit input; server-side processing is separate and may retain synthetic case identifiers in process memory
+- [MIT License](LICENSE)
 
-## 🔒 Security Configuration
-
-Set the audit secret key in production:
-
-```bash
-export AUDIT_SECRET_KEY="your-secure-random-key-here"
-```
-
-**Note:** Without `AUDIT_SECRET_KEY` set, a development-only fallback key is used with a runtime warning.
-
----
-
-## 📐 Mathematical Formulation
-
-```
-CVVH Dose (mL/kg/hr) = Effluent Volume (mL) / (Body Weight (kg) × Time (hr))
-CVVHD Clearance: K = Qd × (1 - e^(-KoA × Qd / Qb))
-Pre-dilution: Effective = Replacement × Qb / (Qb + Replacement)
-Kt/V = Effluent Volume (L) / Total Body Water (L)
-```
-
----
-
-## 📁 Project Structure
-
-```
-crrt-prescriber-agent/
-├── crrt_mind.py                    # Core calculation engine (stdlib-only)
-├── cli.py                          # CLI entry point for core calculator
-├── crrt_prescriber_agent_app.py    # Multi-agent system entry point
-├── crrt_prescriber_agent/          # Multi-agent package
-│   ├── agents.py                   # Agent implementations
-│   ├── cli.py                      # CLI with audit/batch/serve commands
-│   ├── engine.py                   # Clinical domain engine
-│   ├── models.py                   # Data models
-│   └── server.py                   # FastAPI application factory
-├── agents/                         # Enterprise security & workers
-│   ├── base.py                     # PHI guard, HMAC audit trail
-│   ├── models.py                   # Pydantic schemas
-│   ├── workers.py                  # Specialized domain workers
-│   ├── supervisor.py               # Supervisor orchestrator
-│   ├── api.py                      # FastAPI REST endpoints
-│   ├── metrics.py                  # Prometheus metrics
-│   ├── learning.py                 # Bayesian calibration engine
-│   ├── llm_factory.py              # LLM provider factory
-│   └── streamer.py                 # WebSocket telemetry
-├── enrichment.py                   # Feature enrichment modules
-├── test_crrt_mind.py               # Core engine tests
-├── tests/                          # Additional test suites
-├── simulator.py                    # High-throughput stress testing
-├── Dockerfile / docker-compose.yml # Container config
-└── pyproject.toml                  # Project metadata
-```
-
----
-
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Active regex inspection blocking SSNs, MRNs, phone numbers, emails, and patient identifiers
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation
-* **Path Traversal Protection:** Input validation for file operations in batch processing
-* **Configurable Audit Key:** Environment variable `AUDIT_SECRET_KEY` for production deployments
-* **FastAPI & Prometheus Telemetry:** REST endpoints and operational metrics (`/metrics`)
+Clinical reference: [KDIGO AKI guideline summary, Part 2](https://pmc.ncbi.nlm.nih.gov/articles/PMC4056805/). Use professional judgment, institutional protocols and independently validated calculations for patient care.
