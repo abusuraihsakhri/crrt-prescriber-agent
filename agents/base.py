@@ -8,6 +8,7 @@ import json
 import time
 import hmac
 import hashlib
+import copy
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
@@ -66,7 +67,7 @@ class AuditTrail:
                 RuntimeWarning,
                 stacklevel=2,
             )
-            resolved_key = "DEV-ONLY-KEY-SET-AUDIT_SECRET_KEY-IN-PRODUCTION"
+            resolved_key = os.urandom(32).hex()
         self.secret_key = resolved_key.encode("utf-8")
         self.logs: List[Dict[str, Any]] = []
 
@@ -90,17 +91,28 @@ class AuditTrail:
             "current_hash": signature,
         }
         self.logs.append(entry)
-        return entry
+        return copy.deepcopy(entry)
 
     def verify_integrity(self) -> bool:
-        for i, entry in enumerate(self.logs):
-            prev = self.logs[i-1]["current_hash"] if i > 0 else "GENESIS_BLOCK_0000000000000000"
-            if entry["prev_hash"] != prev:
+        prev = "GENESIS_BLOCK_0000000000000000"
+        for entry in self.logs:
+            try:
+                if entry["prev_hash"] != prev:
+                    return False
+                signing_input = "|".join(str(entry[key]) for key in (
+                    "audit_id", "timestamp", "actor", "actor_tier",
+                    "event_type", "payload_hash", "prev_hash"
+                ))
+                expected = hmac.new(self.secret_key, signing_input.encode("utf-8"), hashlib.sha256).hexdigest()
+                if not hmac.compare_digest(expected, entry["current_hash"]):
+                    return False
+                prev = entry["current_hash"]
+            except (KeyError, TypeError, ValueError):
                 return False
         return True
 
     def get_trail(self) -> List[Dict[str, Any]]:
-        return self.logs
+        return copy.deepcopy(self.logs)
 
 
 GLOBAL_AUDIT = AuditTrail()
