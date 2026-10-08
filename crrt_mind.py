@@ -340,8 +340,8 @@ def calc_citrate_protocol(blood_flow_rate_ml_min: float,
     Citrate infusion rate (mL/hr) = (Blood flow rate × citrate dose factor)
     Target post-filter iCa: 0.25-0.40 mmol/L (typically 0.35)
 
-    Citrate dose = Qb × 3.0 (mmol citrate per liter of blood)
-    Citrate infusion rate = Citrate dose / citrate_concentration × 60
+    Citrate dose (mmol/hr) = Qb (L/hr) × 3.0 (mmol/L blood)
+    Citrate infusion (mL/hr) = dose (mmol/hr) / solution concentration (mmol/L) × 1000
 
     Calcium replacement: 10% CaCl2 or Ca-gluconate to maintain systemic iCa 1.0-1.2 mmol/L
 
