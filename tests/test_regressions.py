@@ -127,3 +127,20 @@ def test_batch_csv_boolean_strings_and_tsv(tmp_path):
         rows = list(csv.DictReader(stream))
     assert rows[0]["stat_critical_alerts"] == "0"
     assert rows[1]["stat_critical_alerts"] == "1"
+
+
+def test_nonfinite_api_metrics_rejected():
+    from fastapi.testclient import TestClient
+    from agents.api import app as worker_app
+    from crrt_prescriber_agent.server import create_app
+
+    r1 = TestClient(worker_app).post("/api/audit", json={
+        "task_id": "SYN-1", "target_identifier": "SYN-TARGET",
+        "primary_metric": "NaN",
+    })
+    assert r1.status_code == 422
+    r2 = TestClient(create_app()).post("/api/audit", json={
+        "case_id": "SYN-2", "patient_synthetic_id": "SYN-PT-2",
+        "primary_metric": "Infinity", "secondary_metric": 4.0, "status_flag": "NOMINAL",
+    })
+    assert r2.status_code == 422
