@@ -31,12 +31,12 @@ legend{font-size:.78rem;font-weight:750;color:#244564;padding:0;margin-bottom:10
 .fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .field{min-width:0}
 label{display:block;font-size:.73rem;font-weight:650;color:#4c5f73;min-height:16px;margin-bottom:5px}
-input{width:100%;min-width:0;height:38px;padding:7px 9px;border:1px solid #bfccd9;border-radius:6px;background:white;color:#152a42;font:600 .9rem/1.2 inherit;font-family:inherit;font-variant-numeric:tabular-nums}
+input{width:100%;min-width:0;height:38px;padding:7px 9px;border:1px solid #bfccd9;border-radius:6px;background:white;color:#152a42;font-size:.9rem;font-weight:600;line-height:1.2;font-family:inherit;font-variant-numeric:tabular-nums}
 input:hover{border-color:#7898b5}
 input:focus{border-color:#2867a6}
 .hint{font-size:.71rem;color:#607285;line-height:1.48;margin:8px 0 0}
 .actions{display:flex;align-items:center;gap:12px;margin-top:16px}
-button{border:0;border-radius:7px;background:#205a99;color:white;cursor:pointer;padding:10px 18px;font:700 .83rem/1.2 inherit;font-family:inherit;white-space:nowrap;min-width:125px}
+button{border:0;border-radius:7px;background:#205a99;color:white;cursor:pointer;padding:10px 18px;font-size:.83rem;font-weight:700;line-height:1.2;font-family:inherit;white-space:nowrap;min-width:125px}
 button:hover{background:#174778}
 .actions .hint{margin:0}
 #errors{font-size:.75rem;font-weight:650;color:#a12736;line-height:1.45;margin:9px 0 0}
@@ -103,8 +103,8 @@ footer p{margin:0}
 <section class="panel" aria-labelledby="resultsTitle">
 <div class="panel-head"><h2 id="resultsTitle">Calculated results</h2><span>No data transmitted</span></div>
 <div class="result-grid">
-<div class="metric"><span class="metric-label">Observed effluent dose</span><p class="result" id="dose" aria-live="polite">—</p><p class="metric-caption">mL/kg/h</p></div>
-<div class="metric"><span class="metric-label">Net fluid balance</span><p class="result" id="balance" aria-live="polite">—</p><p class="metric-caption" id="hourly">mL over interval</p></div>
+<div class="metric"><span class="metric-label">Observed effluent dose</span><p class="result" id="dose" aria-live="polite">—</p><p class="metric-caption">Observed delivery</p></div>
+<div class="metric"><span class="metric-label">Net fluid balance</span><p class="result" id="balance" aria-live="polite">—</p><p class="metric-caption" id="hourly">Over observation interval</p></div>
 </div>
 <div class="interpretation"><h3>Reference interpretation</h3><p id="message" aria-live="polite">Enter measurements and select Calculate.</p></div>
 <p class="reference">KDIGO 2012 describes a <strong>delivered</strong> effluent interval of 20–25 mL/kg/h in adults with AKI. Effluent dose is a proxy, not a direct measurement of solute clearance.</p>
