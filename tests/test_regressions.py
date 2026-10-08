@@ -104,3 +104,26 @@ def test_pages_uses_real_arithmetic_and_valid_javascript():
     if node:
         proc = subprocess.run([node, "--check"], input=script, text=True, capture_output=True)
         assert proc.returncode == 0, proc.stderr
+
+
+def test_batch_csv_boolean_strings_and_tsv(tmp_path):
+    import csv
+    from crrt_prescriber_agent.cli import main, parse_batch_boolean
+
+    assert parse_batch_boolean("False") is False
+    assert parse_batch_boolean("YES") is True
+    with pytest.raises(ValueError):
+        parse_batch_boolean("sometimes")
+    source = tmp_path / "cases.tsv"
+    destination = tmp_path / "result.csv"
+    source.write_text(
+        "case_id\tpatient_synthetic_id\tmetric_primary\tmetric_secondary\tstatus_flag\tis_stat\n"
+        "SYN-1\tSYN-PT-1\t15\t5\tNORMAL\tfalse\n"
+        "SYN-2\tSYN-PT-2\t15\t5\tNORMAL\ttrue\n",
+        encoding="utf-8",
+    )
+    assert main(["batch", "--input", str(source), "--output", str(destination)]) == 0
+    with destination.open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
+    assert rows[0]["stat_critical_alerts"] == "0"
+    assert rows[1]["stat_critical_alerts"] == "1"
