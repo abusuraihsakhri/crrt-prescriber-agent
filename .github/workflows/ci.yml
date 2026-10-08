@@ -28,3 +28,19 @@ jobs:
         run: python -m compileall -q agents crrt_prescriber_agent crrt_mind.py enrichment.py
       - name: Run tests
         run: python -m pytest -q
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build container
+        run: docker build -t crrt-prescriber:test .
+      - name: Start server and check health endpoint
+        run: |
+          docker run --rm -d --name crrt-smoke -p 18000:8000 -e AUDIT_SECRET_KEY="$(openssl rand -hex 32)" crrt-prescriber:test
+          trap 'docker logs crrt-smoke; docker stop crrt-smoke' EXIT
+          for attempt in $(seq 1 25); do
+            if curl --fail --silent http://127.0.0.1:18000/health; then exit 0; fi
+            sleep 2
+          done
+          exit 1
