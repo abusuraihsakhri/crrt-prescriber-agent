@@ -3,6 +3,7 @@ Distributed Component Hierarchy & Executive Coordinator for CRRT-Mind: Continuou
 Domain: Nephrology / ICU
 """
 import uuid
+import math
 from typing import Dict, Any, List, Optional
 from .models import ClinicalCasePayload, AgentAlert, UrgencyLevel, ClinicalIntegrityStatus
 from .engine import ClinicalDomainEngine
@@ -68,6 +69,8 @@ class CRRTCoordinator:
         self.case_registry: Dict[str, Dict[str, Any]] = {}
 
     def process_case(self, case: ClinicalCasePayload) -> Dict[str, Any]:
+        if not math.isfinite(case.primary_metric) or not math.isfinite(case.secondary_metric):
+            raise ValueError("Clinical case metrics must be finite")
         all_alerts: List[AgentAlert] = []
         all_alerts.extend(self.agent_1.audit(case))
         all_alerts.extend(self.agent_2.audit(case))

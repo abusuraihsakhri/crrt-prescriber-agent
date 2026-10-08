@@ -1,13 +1,11 @@
-version: '3.8'
-
 services:
   crrt-prescriber-engine:
     build: .
     container_name: crrt-prescriber-engine
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
-      - AUDIT_SECRET_KEY=crrt-prescriber-engine-prod-audit-key-2026
+      - AUDIT_SECRET_KEY=${AUDIT_SECRET_KEY:?Set AUDIT_SECRET_KEY before starting}
       - MODEL_PROVIDER=mock
     restart: unless-stopped
     healthcheck:

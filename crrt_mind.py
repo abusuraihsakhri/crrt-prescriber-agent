@@ -21,6 +21,13 @@ import sys
 from typing import Dict, Any, Optional
 
 
+def _check_finite(**values):
+    """Reject NaN/Infinity before arithmetic or threshold comparisons."""
+    for name, value in values.items():
+        if not math.isfinite(value):
+            raise ValueError(f"{name} must be finite")
+
+
 # ---------------------------------------------------------------------------
 # CVVH - Continuous Venovenous Hemofiltration
 # ---------------------------------------------------------------------------
@@ -38,6 +45,7 @@ def calc_cvvh_prescribed_dose(effluent_volume_ml: float, body_weight_kg: float,
     Returns:
         Dict with prescribed_dose_ml_kg_hr, within_target, recommendation
     """
+    _check_finite(effluent_volume_ml=effluent_volume_ml, body_weight_kg=body_weight_kg, time_hours=time_hours)
     if body_weight_kg <= 0:
         raise ValueError("Body weight must be positive")
     if time_hours <= 0:
@@ -54,8 +62,8 @@ def calc_cvvh_prescribed_dose(effluent_volume_ml: float, body_weight_kg: float,
         within_target = True
         recommendation = "Within acceptable range (20-25 mL/kg/hr per KDIGO)."
     elif dose <= 35:
-        within_target = True
-        recommendation = "Higher dose range (25-35 mL/kg/hr). Monitor for nutrient losses."
+        within_target = False
+        recommendation = "Above the 20-25 mL/kg/hr delivered-dose reference range; review prescribed vs delivered dose and interruptions."
     else:
         within_target = False
         recommendation = "Excessive dose (>35 mL/kg/hr). Risk of electrolyte wasting and drug removal."
@@ -88,6 +96,9 @@ def calc_replacement_fluid_rate(desired_dose_ml_kg_hr: float, body_weight_kg: fl
     Returns:
         Dict with replacement_rate_ml_hr, total_volume_ml
     """
+    _check_finite(desired_dose_ml_kg_hr=desired_dose_ml_kg_hr, body_weight_kg=body_weight_kg, time_hours=time_hours)
+    if time_hours <= 0:
+        raise ValueError("Time must be positive")
     if desired_dose_ml_kg_hr <= 0:
         raise ValueError("Desired dose must be positive")
     if body_weight_kg <= 0:
@@ -123,6 +134,7 @@ def calc_pre_post_dilution(replacement_rate_ml_hr: float, blood_flow_rate_ml_hr:
     Returns:
         Dict with effective_dose, dilution_mode, adjustment_factor
     """
+    _check_finite(replacement_rate_ml_hr=replacement_rate_ml_hr, blood_flow_rate_ml_hr=blood_flow_rate_ml_hr)
     if replacement_rate_ml_hr < 0:
         raise ValueError("Replacement rate cannot be negative")
     if blood_flow_rate_ml_hr <= 0:
@@ -176,6 +188,9 @@ def calc_cvvhd_clearance(dialysate_flow_rate_ml_hr: float, koa: float = 600.0,
     Returns:
         Dict with clearance values
     """
+    _check_finite(dialysate_flow_rate_ml_hr=dialysate_flow_rate_ml_hr, koa=koa, blood_flow_rate_ml_min=blood_flow_rate_ml_min, time_hours=time_hours)
+    if time_hours <= 0:
+        raise ValueError("Time must be positive")
     if dialysate_flow_rate_ml_hr < 0:
         raise ValueError("Dialysate flow rate cannot be negative")
     if blood_flow_rate_ml_min <= 0:
@@ -234,6 +249,9 @@ def calc_cvhdf_total_effluent(replacement_rate_ml_hr: float,
     if dialysate_flow_rate_ml_hr < 0:
         raise ValueError("Dialysate flow rate cannot be negative")
 
+    _check_finite(replacement_rate_ml_hr=replacement_rate_ml_hr, dialysate_flow_rate_ml_hr=dialysate_flow_rate_ml_hr, time_hours=time_hours)
+    if time_hours <= 0:
+        raise ValueError("Time must be positive")
     total_effluent_hr = replacement_rate_ml_hr + dialysate_flow_rate_ml_hr
     total_effluent = total_effluent_hr * time_hours
 
@@ -277,6 +295,9 @@ def calc_crrt_ktv(total_effluent_ml: float, body_weight_kg: float,
     if total_effluent_ml < 0:
         raise ValueError("Effluent volume cannot be negative")
 
+    _check_finite(total_effluent_ml=total_effluent_ml, body_weight_kg=body_weight_kg, time_hours=time_hours)
+    if time_hours <= 0:
+        raise ValueError("Time must be positive")
     # Total body water (Watson formula simplified)
     vd_liters = 0.6 * body_weight_kg
 
@@ -319,8 +340,8 @@ def calc_citrate_protocol(blood_flow_rate_ml_min: float,
     Citrate infusion rate (mL/hr) = (Blood flow rate × citrate dose factor)
     Target post-filter iCa: 0.25-0.40 mmol/L (typically 0.35)
 
-    Citrate dose = Qb × 3.0 (mmol citrate per liter of blood)
-    Citrate infusion rate = Citrate dose / citrate_concentration × 60
+    Citrate dose (mmol/hr) = Qb (L/hr) × 3.0 (mmol/L blood)
+    Citrate infusion (mL/hr) = dose (mmol/hr) / solution concentration (mmol/L) × 1000
 
     Calcium replacement: 10% CaCl2 or Ca-gluconate to maintain systemic iCa 1.0-1.2 mmol/L
 
@@ -338,12 +359,16 @@ def calc_citrate_protocol(blood_flow_rate_ml_min: float,
     if citrate_concentration_mmol_l <= 0:
         raise ValueError("Citrate concentration must be positive")
 
+    _check_finite(blood_flow_rate_ml_min=blood_flow_rate_ml_min, citrate_concentration_mmol_l=citrate_concentration_mmol_l, target_ionized_calcium_mmol_l=target_ionized_calcium_mmol_l, duration_hours=duration_hours)
+    if duration_hours <= 0 or target_ionized_calcium_mmol_l <= 0:
+        raise ValueError("Duration and ionized calcium target must be positive")
+
     # Citrate dose: approximately 3 mmol per liter of blood processed
     qblood_l_hr = (blood_flow_rate_ml_min * 60) / 1000.0
     citrate_dose_mmol_hr = qblood_l_hr * 3.0
 
     # Citrate infusion rate
-    citrate_infusion_ml_hr = (citrate_dose_mmol_hr / citrate_concentration_mmol_l) * 60.0
+    citrate_infusion_ml_hr = (citrate_dose_mmol_hr / citrate_concentration_mmol_l) * 1000.0  # L/hr to mL/hr
 
     # Calcium replacement (approximate: 1 mmol Ca per 3 mmol citrate chelated)
     # Assuming ~60-70% citrate is chelated systemically
@@ -387,6 +412,9 @@ def calc_heparin_protocol(body_weight_kg: float, indication: str = "standard") -
     if body_weight_kg <= 0:
         raise ValueError("Body weight must be positive")
 
+    _check_finite(body_weight_kg=body_weight_kg)
+    if indication not in ("standard", "high_risk"):
+        raise ValueError("Indication must be 'standard' or 'high_risk'")
     if indication == "high_risk":
         loading_dose_units_kg = 30.0
         maintenance_units_kg_hr = 5.0
@@ -432,6 +460,9 @@ def calc_fluid_balance(fluid_intake_ml: float, fluid_output_ml: float,
     Returns:
         Dict with fluid balance details
     """
+    _check_finite(fluid_intake_ml=fluid_intake_ml, fluid_output_ml=fluid_output_ml, ultrafiltration_ml=ultrafiltration_ml, hours=hours)
+    if any(value < 0 for value in (fluid_intake_ml, fluid_output_ml, ultrafiltration_ml)):
+        raise ValueError("Fluid volumes cannot be negative")
     if hours <= 0:
         raise ValueError("Hours must be positive")
 
@@ -492,16 +523,26 @@ def prescribe_crrt(mode: str, body_weight_kg: float,
     if mode not in ("CVVH", "CVVHD", "CVVHDF"):
         raise ValueError("Mode must be CVVH, CVVHD, or CVVHDF")
 
+    _check_finite(body_weight_kg=body_weight_kg, desired_dose_ml_kg_hr=desired_dose_ml_kg_hr, blood_flow_rate_ml_min=blood_flow_rate_ml_min, time_hours=time_hours, koa=koa)
+    if desired_dose_ml_kg_hr <= 0 or blood_flow_rate_ml_min <= 0 or time_hours <= 0 or koa <= 0:
+        raise ValueError("Dose, blood flow, duration, and KoA must be positive")
+    if dilution not in ("pre", "post"):
+        raise ValueError("Dilution must be 'pre' or 'post'")
+    if anticoagulation not in ("citrate", "heparin", "none"):
+        raise ValueError("Anticoagulation must be citrate, heparin, or none")
+
     blood_flow_rate_ml_hr = blood_flow_rate_ml_min * 60.0
     prescription = {"mode": mode, "body_weight_kg": body_weight_kg, "time_hours": time_hours}
 
     if mode == "CVVH":
         repl = calc_replacement_fluid_rate(desired_dose_ml_kg_hr, body_weight_kg, time_hours)
         if dilution == "pre":
-            adj = calc_pre_post_dilution(repl["replacement_rate_ml_hr"],
-                                          blood_flow_rate_ml_hr, "pre")
-            # Increase nominal rate to compensate for pre-dilution
-            adjusted_rate = repl["replacement_rate_ml_hr"] / adj["adjustment_factor"]
+            # Solve effective = R * Qb / (Qb + R) for nominal R.
+            # This is an illustrative whole-blood predilution approximation.
+            target_rate = repl["replacement_rate_ml_hr"]
+            if target_rate >= blood_flow_rate_ml_hr:
+                raise ValueError("Requested predilution effective rate must be below blood flow rate")
+            adjusted_rate = target_rate * blood_flow_rate_ml_hr / (blood_flow_rate_ml_hr - target_rate)
             prescription["replacement_rate_ml_hr"] = round(adjusted_rate, 1)
             prescription["dilution"] = "pre-dilution (adjusted)"
         else:
@@ -532,6 +573,11 @@ def prescribe_crrt(mode: str, body_weight_kg: float,
                                       body_weight_kg, time_hours)
     prescription["prescribed_dose_ml_kg_hr"] = dose["prescribed_dose_ml_kg_hr"]
     prescription["dose_adequate"] = dose["within_target"]
+    if mode == "CVVH" and dilution == "pre":
+        effective = calc_pre_post_dilution(prescription["replacement_rate_ml_hr"], blood_flow_rate_ml_hr, "pre")
+        prescription["estimated_effective_dose_ml_kg_hr"] = round(effective["effective_replacement_rate_ml_hr"] / body_weight_kg, 2)
+        prescription["dose_adequate"] = 20 <= prescription["estimated_effective_dose_ml_kg_hr"] <= 25
+    prescription["dose_note"] = "Illustrative calculation only: effluent-based estimates do not establish delivered solute clearance or clinical adequacy."
 
     ktv = calc_crrt_ktv(prescription["effluent_volume_ml"], body_weight_kg, time_hours)
     prescription["daily_ktv"] = ktv["daily_ktv"]
