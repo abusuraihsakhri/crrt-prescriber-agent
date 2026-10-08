@@ -144,3 +144,36 @@ def test_nonfinite_api_metrics_rejected():
         "primary_metric": "Infinity", "secondary_metric": 4.0, "status_flag": "NOMINAL",
     })
     assert r2.status_code == 422
+
+
+def test_web_worksheet_dom_smoke_test():
+    """Exercise the submit handler with a lightweight DOM stub in Node."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js not available")
+    html = (Path(__file__).parents[1] / "web" / "index.html").read_text(encoding="utf-8")
+    script = html.split("<script>", 1)[1].split("</script>", 1)[0]
+    harness = r"""
+const assert = require('assert');
+const fs = require('fs');
+const source = fs.readFileSync(0, 'utf8');
+const ids = ['worksheet','errors','weight','effluent','hours','intake','output','netuf','dose','balance','hourly','message'];
+const values = {weight:'80',effluent:'48000',hours:'24',intake:'3000',output:'500',netuf:'2500'};
+const elements = {};
+for (const id of ids) elements[id] = {value: values[id] || '', textContent: '', labels: [{textContent:id}]};
+let submit = null;
+elements.worksheet.addEventListener = (type, fn) => {assert.strictEqual(type,'submit'); submit=fn;};
+global.document = {getElementById: id => elements[id]};
+eval(source);
+assert.strictEqual(typeof submit, 'function');
+submit({preventDefault(){}});
+assert.strictEqual(Number.parseFloat(elements.dose.textContent), 25);
+assert.strictEqual(Number.parseFloat(elements.balance.textContent), 0);
+assert.strictEqual(elements.errors.textContent, '');
+elements.weight.value = '0';
+submit({preventDefault(){}});
+assert.match(elements.errors.textContent, /positive/);
+assert.strictEqual(elements.dose.textContent, '—');
+"""
+    run = subprocess.run([node, "-e", harness], input=script, capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr
