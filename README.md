@@ -6,7 +6,7 @@ CRRT effluent-dose and fluid-balance calculations, an experimental Python audit 
 
 ## Browser worksheet
 
-The static interface in [`web/index.html`](web/index.html) calculates:
+The compact, light-themed, responsive single-page interface in [`web/index.html`](web/index.html) calculates:
 
 - **Observed effluent dose** = collected effluent (mL) / [body weight (kg) × observation duration (h)]
 - **Net fluid balance** = intake − non-CRRT output − net patient fluid removal by CRRT
