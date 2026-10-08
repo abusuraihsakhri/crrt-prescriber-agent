@@ -1,5 +1,7 @@
 # CRRT Prescriber Agent
 
+### [Open the Live Application →](https://abusuraihsakhri.github.io/crrt-prescriber-agent/)
+
 CRRT effluent-dose and fluid-balance calculations, an experimental Python audit framework, and a browser-based educational worksheet. The clinical calculations are **illustrative** and have not been established as validated medical devices or autonomous prescribing protocols.
 
 ## Browser worksheet
