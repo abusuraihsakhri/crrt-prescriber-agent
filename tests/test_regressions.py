@@ -177,3 +177,19 @@ assert.strictEqual(elements.dose.textContent, '—');
 """
     run = subprocess.run([node, "-e", harness], input=script, capture_output=True, text=True)
     assert run.returncode == 0, run.stderr
+
+
+def test_web_worksheet_is_compact_responsive_light_single_page():
+    """Guard the standalone, accessible Pages layout against regressions."""
+    html = (Path(__file__).parents[1] / "web" / "index.html").read_text(encoding="utf-8")
+    assert html.count("<html") == 1
+    assert 'name="color-scheme" content="light"' in html
+    assert "color-scheme:light" in html
+    assert "grid-template-columns:repeat(3,minmax(0,1fr))" in html
+    assert "@media(max-width:500px)" in html
+    assert "@media(max-width:330px)" in html
+    for field in ("weight", "effluent", "hours", "intake", "output", "netuf"):
+        assert f'<label for="{field}">' in html
+        assert f'<input id="{field}"' in html
+    assert 'role="alert"' in html
+    assert "<script src=" not in html and "<link rel=\"stylesheet\"" not in html
