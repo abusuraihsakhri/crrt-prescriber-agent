@@ -13,6 +13,18 @@ from .agents import CRRTCoordinator
 coordinator = CRRTCoordinator()
 
 
+def parse_batch_boolean(value):
+    """Parse CSV booleans explicitly; bool("False") is True in Python."""
+    if isinstance(value, bool):
+        return value
+    normalized = str(value or "").strip().lower()
+    if normalized in ("", "0", "false", "no", "n"):
+        return False
+    if normalized in ("1", "true", "yes", "y"):
+        return True
+    raise ValueError(f"Invalid boolean flag: {value!r}")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="crrt-prescriber-agent", description="CRRT-Mind: Continuous Renal Replacement Therapy Effluent & Citrate Anticoagulation Agent")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -92,7 +104,7 @@ def main(argv=None):
             return 1
 
         with open(input_path, mode="r", encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f)
+            reader = csv.DictReader(f, delimiter='\t' if input_path.suffix.lower() == '.tsv' else ',')
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
 
@@ -105,7 +117,7 @@ def main(argv=None):
                 primary_metric=float(r.get("metric_primary", r.get("primary_metric", 15.0))),
                 secondary_metric=float(r.get("metric_secondary", r.get("secondary_metric", 5.0))),
                 status_flag=r.get("status_flag", r.get("status_text", "NORMAL")),
-                is_stat=bool(r.get("is_stat", r.get("critical_flag", False))),
+                is_stat=parse_batch_boolean(r.get("is_stat", r.get("critical_flag", False))),
             )
             dossier = coordinator.process_case(case)
             row_dict = dict(r)
