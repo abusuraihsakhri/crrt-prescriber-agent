@@ -39,7 +39,7 @@ class AgentAlert(BaseModel):
     summary: str
     technical_details: str
     actionable_remediation: str
-    standard_reference: str = "KDIGO / KDOQI Clinical Practice Guidelines"
+    standard_reference: str = "Synthetic demonstration rules; not clinically validated"
     timestamp: str = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
