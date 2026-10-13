@@ -14,7 +14,7 @@ def create_app():
 
         app = FastAPI(
             title="CRRT-Mind: Continuous Renal Replacement Therapy Effluent & Citrate Anticoagulation Agent",
-            description="Calculates prescribed vs delivered effluent dose (20-25 mL/kg/h), post-filter ionized calcium targets, and systemic calcium chloride replacement.",
+            description="Synthetic case flagging with an educational delivered-effluent reference comparison. Does not calculate citrate or calcium replacement rates or provide patient-specific prescriptions.",
             version="2.0.0-PRO",
         )
 
