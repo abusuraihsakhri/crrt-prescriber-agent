@@ -91,7 +91,13 @@ def test_server_accepts_valid_audit_requests():
         "is_stat": False,
     })
     assert response.status_code == 200
-    assert response.json()["total_alerts"] == 1
+    assert response.json()["total_alerts"] == 0  # 22 mL/kg/h is inside the reference interval
+    below = client.post("/api/audit", json={
+        "case_id": "SYNTH-CASE-LOW", "patient_synthetic_id": "SYNTH-02",
+        "primary_metric": 19.0, "secondary_metric": 5.0, "status_flag": "NORMAL",
+    })
+    assert below.status_code == 200
+    assert below.json()["total_alerts"] == 1
 
 
 def test_pages_uses_real_arithmetic_and_valid_javascript():
@@ -193,3 +199,80 @@ def test_web_worksheet_is_compact_responsive_light_single_page():
         assert f'<input id="{field}"' in html
     assert 'role="alert"' in html
     assert "<script src=" not in html and "<link rel=\"stylesheet\"" not in html
+
+
+def test_delivered_effluent_reference_interval_is_not_inverted():
+    from crrt_prescriber_agent.engine import ClinicalDomainEngine
+
+    assert ClinicalDomainEngine.evaluate_primary_index(19.0) is not None
+    assert ClinicalDomainEngine.evaluate_primary_index(20.0) is None
+    assert ClinicalDomainEngine.evaluate_primary_index(22.0) is None
+    assert ClinicalDomainEngine.evaluate_primary_index(25.0) is None
+    assert ClinicalDomainEngine.evaluate_primary_index(26.0) is not None
+    assert ClinicalDomainEngine.evaluate_biomarker_concordance("MUTANT", {}) is None
+
+
+def test_api_cannot_fabricate_default_patient_audit():
+    from fastapi.testclient import TestClient
+    from crrt_prescriber_agent.server import create_app
+
+    client = TestClient(create_app())
+    assert client.post("/api/audit", json={}).status_code == 422
+    assert client.post("/api/audit", json={
+        "case_id": "SYN-TEST", "patient_synthetic_id": "SYNTH-01",
+        "primary_metric": 22, "secondary_metric": 0, "status_flag": "NORMAL",
+    }).status_code == 200
+
+
+def test_ktv_proxy_threshold_mathematically_matches_effluent_reference():
+    from crrt_mind import calc_crrt_ktv
+
+    # 18 mL/kg/h over 24h gives a simplified Kt/V of 0.72, below
+    # the *algebraic* equivalent of 20 mL/kg/h (0.8), not 0.65.
+    below = calc_crrt_ktv(18 * 80 * 24, 80, 24)
+    assert below["daily_ktv"] == pytest.approx(0.72)
+    assert below["target_daily_ktv"] == pytest.approx(0.8)
+    assert below["adequate"] is False
+    assert "not a validated CRRT Kt/V target" in below["interpretation_note"]
+
+
+def test_prescription_defaults_to_no_anticoagulant():
+    from crrt_mind import prescribe_crrt
+
+    result = prescribe_crrt("CVVH", 80, desired_dose_ml_kg_hr=25)
+    assert result["anticoagulation"]["protocol"] == "None"
+
+
+def test_derived_effluent_dose_rejects_overflow():
+    with pytest.raises(ValueError, match="dose must be finite"):
+        calc_cvvh_prescribed_dose(1e308, 1e-308, 1.0)
+
+
+def test_citrate_optimizer_rejects_zero_and_nonfinite_ionized_calcium():
+    from datetime import datetime, timezone
+    from crrt_prescriber_agent.citrate_protocol_optimizer import (
+        CitrateLabPanel, CitrateInfusionState, CitrateProtocolOptimizer,
+    )
+
+    labs = CitrateLabPanel(
+        timestamp=datetime.now(timezone.utc),
+        post_filter_ica=0.3,
+        systemic_ica=0.0,
+        systemic_total_calcium=9.5,
+        ionized_calcium_systemic=4.4,
+        bicarbonate=24.0,
+    )
+    state = CitrateInfusionState(
+        citrate_rate_ml_hr=150.0,
+        citrate_concentration_mmol_l=136.0,
+        calcium_chloride_rate_ml_hr=10.0,
+        calcium_chloride_concentration_mmol_l=680.0,
+        blood_flow_rate_ml_min=150.0,
+        effluent_flow_rate_ml_hr=2000.0,
+        patient_weight_kg=80.0,
+    )
+    with pytest.raises(ValueError, match="systemic_ica must be positive"):
+        CitrateProtocolOptimizer().optimize(labs, state)
+    labs.systemic_ica = float("nan")
+    with pytest.raises(ValueError, match="systemic_ica must be a finite number"):
+        CitrateProtocolOptimizer().optimize(labs, state)

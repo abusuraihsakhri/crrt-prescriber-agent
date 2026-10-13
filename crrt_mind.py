@@ -54,19 +54,20 @@ def calc_cvvh_prescribed_dose(effluent_volume_ml: float, body_weight_kg: float,
         raise ValueError("Effluent volume cannot be negative")
 
     dose = effluent_volume_ml / (body_weight_kg * time_hours)
+    _check_finite(dose=dose)
 
     if dose < 20:
         within_target = False
-        recommendation = "Below KDIGO minimum (20 mL/kg/hr). Increase effluent volume."
+        recommendation = "Below the 20–25 mL/kg/h delivered-effluent reference interval; review actual delivery and clinical context."
     elif dose <= 25:
         within_target = True
-        recommendation = "Within acceptable range (20-25 mL/kg/hr per KDIGO)."
+        recommendation = "Within the KDIGO 2012 delivered-effluent reference interval for adults with AKI; this does not establish clinical adequacy."
     elif dose <= 35:
         within_target = False
         recommendation = "Above the 20-25 mL/kg/hr delivered-dose reference range; review prescribed vs delivered dose and interruptions."
     else:
         within_target = False
-        recommendation = "Excessive dose (>35 mL/kg/hr). Risk of electrolyte wasting and drug removal."
+        recommendation = "Above the reference interval; review inputs and clinical context, including electrolyte and drug losses."
 
     return {
         "mode": "CVVH",
@@ -280,7 +281,8 @@ def calc_crrt_ktv(total_effluent_ml: float, body_weight_kg: float,
     Daily Kt/V = Effluent volume (L) / Vd (L)
     Weekly Kt/V = Daily Kt/V × 7
 
-    Target: Daily Kt/V ≥ 0.65 (equivalent to effluent dose ≥ 20 mL/kg/hr)
+    Mathematical proxy only: 20 mL/kg/h for 24 h corresponds to Kt/V=0.8 when Vd=0.6 L/kg.
+    No daily Kt/V cutoff is validated here as a CRRT adequacy target.
 
     Args:
         total_effluent_ml: Total effluent volume in mL
@@ -309,7 +311,9 @@ def calc_crrt_ktv(total_effluent_ml: float, body_weight_kg: float,
     daily_ktv = ktv_period * (hours_per_day / time_hours) if time_hours > 0 else 0
     weekly_ktv = daily_ktv * 7
 
-    adequate = daily_ktv >= 0.65
+    # Backward-compatible flag: theoretical effluent equivalent >=20 mL/kg/h,
+    # not an independent clinical assessment of dialysis adequacy.
+    adequate = daily_ktv >= 0.8
 
     return {
         "total_effluent_ml": total_effluent_ml,
@@ -319,10 +323,10 @@ def calc_crrt_ktv(total_effluent_ml: float, body_weight_kg: float,
         "daily_ktv": round(daily_ktv, 3),
         "weekly_ktv": round(weekly_ktv, 3),
         "time_hours": time_hours,
-        "target_daily_ktv": 0.65,
+        "target_daily_ktv": 0.8,
         "adequate": adequate,
-        "recommendation": ("Dose is adequate." if adequate
-                           else "Dose below target. Increase effluent volume."),
+        "recommendation": "Exploratory Kt/V proxy only; compare measured delivered effluent with the clinical context, not this flag alone.",
+        "interpretation_note": "The 0.8 threshold is algebraically equivalent to 20 mL/kg/h under the assumed Vd of 0.6 L/kg; it is not a validated CRRT Kt/V target.",
     }
 
 
@@ -468,16 +472,17 @@ def calc_fluid_balance(fluid_intake_ml: float, fluid_output_ml: float,
 
     net_balance = fluid_intake_ml - fluid_output_ml - ultrafiltration_ml
     hourly_rate = net_balance / hours
+    _check_finite(net_balance=net_balance, hourly_rate=hourly_rate)
 
     if net_balance > 500:
         status = "positive_balance"
-        recommendation = "Fluid overload risk. Consider increasing ultrafiltration."
+        recommendation = "Positive net balance observed; interpret with duration, hemodynamics, and individualized fluid goals."
     elif net_balance < -500:
         status = "negative_balance"
-        recommendation = "Significant fluid deficit. Consider reducing ultrafiltration."
+        recommendation = "Negative net balance observed; interpret with duration, hemodynamics, and individualized fluid goals."
     else:
         status = "balanced"
-        recommendation = "Fluid balance within acceptable range."
+        recommendation = "Net balance is within ±500 mL for this interval; this arithmetic band is not a clinical target."
 
     return {
         "fluid_intake_ml": fluid_intake_ml,
@@ -499,7 +504,7 @@ def prescribe_crrt(mode: str, body_weight_kg: float,
                    desired_dose_ml_kg_hr: float = 25.0,
                    blood_flow_rate_ml_min: float = 200.0,
                    dilution: str = "post",
-                   anticoagulation: str = "citrate",
+                   anticoagulation: str = "none",
                    time_hours: float = 24.0,
                    koa: float = 600.0) -> Dict[str, Any]:
     """
@@ -659,7 +664,7 @@ def main(argv=None):
     p_rx.add_argument("--dose", type=float, default=25.0, help="Desired dose (mL/kg/hr)")
     p_rx.add_argument("--blood-flow", type=float, default=200.0, help="Blood flow (mL/min)")
     p_rx.add_argument("--dilution", choices=["pre", "post"], default="post")
-    p_rx.add_argument("--anticoag", choices=["citrate", "heparin", "none"], default="citrate")
+    p_rx.add_argument("--anticoag", choices=["citrate", "heparin", "none"], default="none")
     p_rx.add_argument("--hours", type=float, default=24.0, help="Duration (hours)")
 
     args = parser.parse_args(argv)

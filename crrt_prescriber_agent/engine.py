@@ -11,15 +11,24 @@ from .models import ClinicalCasePayload, AgentAlert, UrgencyLevel, ClinicalInteg
 class ClinicalDomainEngine:
     GUIDELINE = "KDIGO 2012 AKI & CRRT Practice Guidelines"
     PRIMARY_BASELINE_LIMIT = 20.0
+    UPPER_REFERENCE_LIMIT = 25.0
     SECONDARY_ALERT_LIMIT = 10.0
 
     @classmethod
     def evaluate_primary_index(cls, value: float) -> Optional[Dict[str, Any]]:
-        if value > cls.PRIMARY_BASELINE_LIMIT:
+        # The caller must supply an observed, delivered effluent dose in mL/kg/h.
+        # This is a reference comparison, not a patient-specific treatment decision.
+        if value < cls.PRIMARY_BASELINE_LIMIT:
             return {
-                "title": "Primary Metric Threshold Exceeded",
-                "finding": f"Observed value ({value:.2f}) exceeds KDIGO 2012 AKI & CRRT Practice Guidelines clinical baseline limit ({cls.PRIMARY_BASELINE_LIMIT:.1f}).",
-                "recommendation": "Perform immediate secondary verification and calibration review.",
+                "title": "Delivered Effluent Below Reference Interval",
+                "finding": f"Observed dose ({value:.2f} mL/kg/h) is below the KDIGO 2012 delivered-effluent reference interval (20–25 mL/kg/h) for adults with AKI.",
+                "recommendation": "Review the measured delivery, interruptions, and clinical context with the treating team.",
+            }
+        if value > cls.UPPER_REFERENCE_LIMIT:
+            return {
+                "title": "Delivered Effluent Above Reference Interval",
+                "finding": f"Observed dose ({value:.2f} mL/kg/h) is above the KDIGO 2012 delivered-effluent reference interval (20–25 mL/kg/h) for adults with AKI.",
+                "recommendation": "Review the measured delivery and clinical context; no automatic prescription change is implied.",
             }
         return None
 
@@ -27,19 +36,19 @@ class ClinicalDomainEngine:
     def evaluate_secondary_kinetics(cls, value: float, is_stat: bool) -> Optional[Dict[str, Any]]:
         if value > cls.SECONDARY_ALERT_LIMIT or is_stat:
             return {
-                "title": "STAT Kinetic Escalation Triggered",
-                "finding": f"Kinetic parameter ({value:.2f}) with STAT={is_stat} requires prioritized supervision.",
-                "recommendation": "Activate closed-loop verbal clinician notification protocol per Joint Commission standards.",
+                "title": "Synthetic Secondary Score Flag",
+                "finding": f"Demonstration-only secondary score ({value:.2f}), STAT={is_stat}; the threshold is not a validated clinical alarm.",
+                "recommendation": "Manually review the synthetic case flag; do not use this rule to determine clinical escalation.",
             }
         return None
 
     @classmethod
     def evaluate_biomarker_concordance(cls, status_flag: str, biomarkers: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         status_upper = str(status_flag).upper()
-        if "DISCORDANT" in status_upper or "EQUIVOCAL" in status_upper or "MUTANT" in status_upper:
+        if "DISCORDANT" in status_upper or "EQUIVOCAL" in status_upper:
             return {
-                "title": "Phenotypic / Biomarker Discordance Identified",
-                "finding": f"Status flag '{status_flag}' indicates divergence from standard diagnostic concordance.",
-                "recommendation": f"Order reflex confirmatory testing per KDIGO 2012 AKI & CRRT Practice Guidelines clinical recommendations.",
+                "title": "Synthetic Status Flag Requires Review",
+                "finding": f"Case status '{status_flag}' was marked for manual review; this is not a KDIGO biomarker criterion.",
+                "recommendation": "Review the source status in the demonstration case. No confirmatory test or treatment is inferred.",
             }
         return None

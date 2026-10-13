@@ -10,26 +10,27 @@ coordinator = CRRTCoordinator()
 def create_app():
     try:
         from fastapi import FastAPI
-        from pydantic import BaseModel, FiniteFloat
+        from pydantic import BaseModel, FiniteFloat, Field
 
         app = FastAPI(
             title="CRRT-Mind: Continuous Renal Replacement Therapy Effluent & Citrate Anticoagulation Agent",
-            description="Calculates prescribed vs delivered effluent dose (20-25 mL/kg/h), post-filter ionized calcium targets, and systemic calcium chloride replacement.",
+            description="Synthetic case flagging with an educational delivered-effluent reference comparison. Does not calculate citrate or calcium replacement rates or provide patient-specific prescriptions.",
             version="2.0.0-PRO",
         )
 
         class AuditRequest(BaseModel):
-            case_id: str = "CASE-2026-001"
-            patient_synthetic_id: str = "SYNTH-PT-881"
-            primary_metric: FiniteFloat = 24.5
-            secondary_metric: FiniteFloat = 14.0
-            status_flag: str = "DISCORDANT"
-            is_stat: bool = True
-            clinical_notes: str = ""
-            biomarkers: Dict[str, Any] = {}
+            # Never fabricate patient measurements or a STAT flag from an empty request.
+            case_id: str = Field(..., min_length=1, max_length=128)
+            patient_synthetic_id: str = Field(..., min_length=1, max_length=128)
+            primary_metric: FiniteFloat = Field(..., description="Observed delivered effluent dose (mL/kg/h); educational reference comparison")
+            secondary_metric: FiniteFloat = Field(..., description="Synthetic secondary score; no clinically validated threshold")
+            status_flag: str = Field(..., min_length=1, max_length=128)
+            is_stat: bool = False
+            clinical_notes: str = Field(default="", max_length=4000)
+            biomarkers: Dict[str, Any] = Field(default_factory=dict)
 
         class ChatRequest(BaseModel):
-            query: str
+            query: str = Field(..., min_length=1, max_length=2000)
 
         @app.get("/health")
         def health():

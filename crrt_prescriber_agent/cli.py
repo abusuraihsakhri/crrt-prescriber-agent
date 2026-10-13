@@ -77,7 +77,7 @@ def main(argv=None):
         dossier = coordinator.process_case(case)
         print("=" * 80)
         print(f"  CRRT-MIND: CONTINUOUS RENAL REPLACEMENT THERAPY EFFLUENT & CITRATE ANTICOAGULATION AGENT")
-        print(f"  Domain: Nephrology / ICU | Standard: KDIGO 2012 AKI & CRRT Practice Guidelines")
+        print("  Synthetic demonstration rules only | Not a clinically validated audit")
         print(f"  Case: {dossier['case_id']} | Status: [{dossier['overall_status']}] | Total Alerts: {dossier['total_alerts']}")
         print("=" * 80)
         for a in dossier["alerts"]:

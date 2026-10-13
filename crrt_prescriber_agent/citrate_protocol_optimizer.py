@@ -104,7 +104,33 @@ class CitrateProtocolOptimizer:
 
     def optimize(self, labs: CitrateLabPanel,
                  current_state: CitrateInfusionState) -> CitrateOptimizationResult:
-        """Generate optimized citrate protocol recommendations."""
+        """Generate exploratory citrate-rate scenarios from validated finite inputs."""
+        # A zero/invalid systemic iCa previously produced a Ca/iCa ratio of zero,
+        # silently suppressing the citrate-accumulation warning.
+        values = {
+            "post_filter_ica": labs.post_filter_ica,
+            "systemic_ica": labs.systemic_ica,
+            "systemic_total_calcium": labs.systemic_total_calcium,
+            "bicarbonate": labs.bicarbonate,
+            "citrate_rate_ml_hr": current_state.citrate_rate_ml_hr,
+            "calcium_chloride_rate_ml_hr": current_state.calcium_chloride_rate_ml_hr,
+            "citrate_concentration_mmol_l": current_state.citrate_concentration_mmol_l,
+            "calcium_chloride_concentration_mmol_l": current_state.calcium_chloride_concentration_mmol_l,
+            "blood_flow_rate_ml_min": current_state.blood_flow_rate_ml_min,
+            "effluent_flow_rate_ml_hr": current_state.effluent_flow_rate_ml_hr,
+            "patient_weight_kg": current_state.patient_weight_kg,
+        }
+        for name, value in values.items():
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                raise ValueError(f"{name} must be a finite number")
+        for name in ("post_filter_ica", "systemic_ica", "systemic_total_calcium",
+                     "citrate_concentration_mmol_l", "calcium_chloride_concentration_mmol_l",
+                     "blood_flow_rate_ml_min", "patient_weight_kg"):
+            if values[name] <= 0:
+                raise ValueError(f"{name} must be positive")
+        for name in ("citrate_rate_ml_hr", "calcium_chloride_rate_ml_hr", "effluent_flow_rate_ml_hr"):
+            if values[name] < 0:
+                raise ValueError(f"{name} cannot be negative")
         import uuid
         self._history.append(labs)
         safety_alerts = []
@@ -120,7 +146,9 @@ class CitrateProtocolOptimizer:
         acid_base, ab_msg = self._assess_acid_base(labs)
 
         # 4. Check for citrate accumulation (total Ca / iCa ratio)
-        ca_ratio = labs.systemic_total_calcium / (labs.systemic_ica * 4.0) if labs.systemic_ica > 0 else 0
+        ca_ratio = labs.systemic_total_calcium / (labs.systemic_ica * 4.0)
+        if not math.isfinite(ca_ratio):
+            raise ValueError("Computed total-to-ionized calcium ratio is not finite")
         accumulation_risk = ca_ratio > self.CA_RATIO_ACCUMULATION_THRESHOLD
 
         # 5. Determine citrate rate adjustment
