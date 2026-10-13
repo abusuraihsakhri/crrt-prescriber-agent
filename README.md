@@ -17,9 +17,9 @@ The KDIGO 2012 reference interval of **20–25 mL/kg/h refers to delivered efflu
 
 ## Python features
 
-`crrt_mind.py` provides CVVH effluent calculations, replacement-flow estimation, predilution approximation, CVVHD illustrative clearance, CVVHDF flow aggregation, simplified Kt/V, citrate and heparin arithmetic, and fluid balance. Additional research-oriented modules implement synthetic-case audits and exploratory citrate/electrolyte/filter evaluation.
+`crrt_mind.py` provides CVVH effluent calculations, replacement-flow estimation, predilution approximation, CVVHD illustrative clearance, CVVHDF flow aggregation, simplified Kt/V, citrate and heparin arithmetic, and fluid balance. Anticoagulation defaults to **none** in the combined simulation; choosing citrate or heparin explicitly generates illustrative, non-orderable arithmetic. Additional research-oriented modules implement synthetic-case audits and exploratory citrate/electrolyte/filter evaluation.
 
-**Important limitations:** Citrate and heparin functions are arithmetic models, not patient-specific treatment instructions. Some formulas and thresholds are simplifications that require independent specialist verification before any clinical use. Never copy calculated anticoagulant rates into clinical orders without a locally approved protocol. Do not enter identifiable patient data.
+**Important limitations:** Citrate and heparin functions are arithmetic models, not patient-specific treatment instructions. The Kt/V `adequate` flag is retained for compatibility but corresponds only to an *algebraic effluent-equivalent threshold*: 20 mL/kg/h for 24 hours yields a proxy Kt/V of 0.8 when Vd is assumed to be 0.6 L/kg. It is **not a validated CRRT Kt/V adequacy criterion**. The synthetic audit agents use arbitrary secondary-score thresholds, not validated clinical rules. Other algorithms and rate recommendations likewise require independent specialist verification. Never copy anticoagulant or electrolyte rates into clinical orders without a locally approved protocol. Do not enter identifiable patient data.
 
 ## Installation and usage
 
@@ -46,7 +46,7 @@ python crrt_prescriber_agent_app.py serve --host 127.0.0.1 --port 8000
 uvicorn agents.api:app --host 127.0.0.1 --port 8000
 ```
 
-Both expose `/health` and `/api/audit`, **but they use different request schemas and rule sets**. The `agents.api` service also exposes `/metrics` as JSON (not Prometheus exposition text). The APIs have no built-in authentication or production-grade patient-data controls; bind to localhost for evaluation and do not expose them publicly with real health data.
+Both expose `/health` and `/api/audit`, **but they use different request schemas and rule sets**. The main API requires explicit synthetic case identifiers, a measured delivered effluent dose in mL/kg/h, a secondary synthetic score, and a status flag; an empty request is rejected. The `agents.api` service also exposes `/metrics` as JSON (not Prometheus exposition text). The APIs have no built-in authentication or production-grade patient-data controls; bind to localhost for evaluation and do not expose them publicly with real health data. Their mock chat implementation does not perform real model inference or clinical validation.
 
 For Docker Compose, configure a high-entropy key before starting:
 
@@ -59,7 +59,7 @@ The audit trail is held **in process memory only**. HMAC-SHA256 signatures and c
 
 ## Testing and deployment
 
-GitHub Actions runs dependency installation, `pip check`, Python compilation and pytest against Python 3.10, 3.11 and 3.12. Regression tests cover core calculations, citrate units, predilution, invalid measurements, batch flags, HMAC verification, API requests and the static worksheet script. GitHub Pages publishes the `web/` directory after changes to `master`.
+GitHub Actions runs dependency installation, `pip check`, Python compilation and pytest against Python 3.10, 3.11 and 3.12. Regression tests cover core calculations, dose-reference boundaries, derived-value overflow, citrate ionized-calcium validation, predilution, invalid measurements, explicit API inputs, batch flags, HMAC verification, and the static worksheet script. GitHub Pages publishes the `web/` directory after changes to `master`.
 
 ## Technology, privacy and license
 
