@@ -54,6 +54,7 @@ def calc_cvvh_prescribed_dose(effluent_volume_ml: float, body_weight_kg: float,
         raise ValueError("Effluent volume cannot be negative")
 
     dose = effluent_volume_ml / (body_weight_kg * time_hours)
+    _check_finite(dose=dose)
 
     if dose < 20:
         within_target = False
@@ -471,6 +472,7 @@ def calc_fluid_balance(fluid_intake_ml: float, fluid_output_ml: float,
 
     net_balance = fluid_intake_ml - fluid_output_ml - ultrafiltration_ml
     hourly_rate = net_balance / hours
+    _check_finite(net_balance=net_balance, hourly_rate=hourly_rate)
 
     if net_balance > 500:
         status = "positive_balance"
