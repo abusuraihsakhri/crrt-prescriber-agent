@@ -108,6 +108,6 @@ class CRRTCoordinator:
         if "status" in q or "summary" in q:
             return f"CRRT-Mind: Continuous Renal Replacement Therapy Effluent & Citrate Anticoagulation Agent currently tracking {len(self.case_registry)} cases in on-premises memory."
         elif "guideline" in q or "standard" in q:
-            return "Active clinical surveillance operates under KDIGO 2012 AKI & CRRT Practice Guidelines validated protocols."
+            return "KDIGO 2012 describes a delivered CRRT effluent volume of 20–25 mL/kg/h for adults with AKI. The synthetic agent rules are not clinically validated protocols."
         else:
-            return f"CRRT-Mind: Continuous Renal Replacement Therapy Effluent & Citrate Anticoagulation Agent executive agent online. Zero-PHI air-gapped monitoring active."
+            return "Local demonstration interface only; clinical monitoring, zero-PHI processing, and independent validation are not provided."
